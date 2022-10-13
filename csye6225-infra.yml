@@ -80,7 +80,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: setting up Internet Gateway for myVPC
+          Value: !Sub ${AWS::StackName}-Internet-Gateway
 
   #To attach the InternetGateway with myVPC created above
   InternetGatewayAttach:
