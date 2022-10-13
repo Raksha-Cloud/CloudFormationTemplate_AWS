@@ -40,7 +40,7 @@ Resources:
           Value: !Ref AWS::StackName
     
   # creating Subnet 1:
-  subnetOne:
+  PublicSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
@@ -52,7 +52,7 @@ Resources:
           Value: !Sub ${AWS::StackName}-Subnet-1
 
   # creating Subnet 2:
-  subnetTwo:
+  PublicSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
@@ -64,7 +64,7 @@ Resources:
           Value: !Sub ${AWS::StackName}-Subnet-2
 
   # creating Subnet 3:
-  subnetThree:
+  PublicSubnetThree:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
@@ -101,7 +101,7 @@ Resources:
           Value: !Sub ${AWS::StackName}-Public Routing Table
       
 
-  # Route in routingTable 1
+  # Route in routingTable
   PublicDefaultRoute:
     Type: AWS::EC2::Route
     DependsOn: InternetGatewayAttach
@@ -109,3 +109,25 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGatewayBlock
       RouteTableId: !Ref PublicRoutingTable
+
+  #Attaching Public subnet 1 to the Public Routing Table  
+  PublicSubnet1RouteTableAttach:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRoutingTable
+      SubnetId: !Ref PublicSubnetOne
+
+  #Attaching Public subnet 2 to the Public Routing Table  
+  PublicSubnet2RouteTableAttach:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRoutingTable
+      SubnetId: !Ref PublicSubnetTwo
+
+  #Attaching Public subnet 3 to the Public Routing Table 
+  PublicSubnet3RouteTableAAttach:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRoutingTable
+      SubnetId: !Ref PublicSubnetThree
+  
