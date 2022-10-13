@@ -1,0 +1,111 @@
+#Cloud formation template format version
+AWSTemplateFormatVersion: "2010-09-09"
+
+#Cloud formation template description
+Description: Creating cloud formation template that can be used to set up required networking resources such as VPC, Internet Gateway and Route Tables. 
+
+#Values to pass to your template at runtime (when you create or update a stack)
+Parameters:
+  VpcCidrBlock:
+    Type: String
+    Description: IP Range for Virtual Private Cloud
+    Default: "10.1.1.0/24"
+  subnet1CidrBlock:
+    Type: String
+    Description: IP range for the Subnet 1
+    Default: "10.1.1.0/24"
+  subnet2CidrBlock:
+    Type: String
+    Description: IP range for the Subnet 2
+    Default: "10.1.2.0/24"
+  subnet3CidrBlock:
+    Type: String
+    Description: IP range for the Subnet 3
+    Default: "10.1.3.0/24"
+
+#Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
+
+Resources:
+
+#creating my vpc
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      InstanceTenancy: "default"
+      Tags:
+        - Key: Name
+          Value: !Ref AWS::StackName
+    
+  # creating Subnet 1:
+  subnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: !Ref subnet1CidrBlock
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Subnet-1
+
+  # creating Subnet 2:
+  subnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: !Ref subnet2CidrBlock
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Subnet-2
+
+  # creating Subnet 3:
+  subnetThree:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: !Ref subnet3CidrBlock
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Subnet-3
+
+  #setting up the Internet Gateway for myVPC
+  InternetGatewayBlock:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: setting up Internet Gateway for myVPC
+
+  #To attach the InternetGateway with myVPC created above
+  InternetGatewayAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGatewayBlock
+      VpcId: !Ref myVPC
+
+
+  # Routing Table:
+  PublicRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Public Routing Table
+      
+
+  # Route in routingTable 1
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttach
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGatewayBlock
+      RouteTableId: !Ref PublicRoutingTable
