@@ -92,7 +92,7 @@ You must be able to use the same CloudFormation template in the same AWS account
     ```
 - Run the below command to `build` your `stack` with `parameters` 
     ```
-    $ aws cloudformation create-stack --stack-name test2 --template-body file://csye6225-infra.yml --parameter ParameterKey=VpcCidrBlock,ParameterValue="10.0.0.0/16" ParameterKey=subnet1CidrBlock,ParameterValue="10.0.13.0/24" ParameterKey=subnet2CidrBlock,ParameterValue="10.0.12.0/24" ParameterKey=subnet3CidrBlock,ParameterValue="10.0.11.0/24"
+    $ aws cloudformation create-stack --stack-name demoTest1 --template-body file://csye6225-infra.yml --parameter ParameterKey=VpcCidrBlock,ParameterValue="10.0.0.0/16" ParameterKey=subnet1CidrBlock,ParameterValue="10.0.13.0/24" ParameterKey=subnet2CidrBlock,ParameterValue="10.0.12.0/24" ParameterKey=subnet3CidrBlock,ParameterValue="10.0.11.0/24"
     ```
 - Run the below command to `delete` your `stack` 
     ```
