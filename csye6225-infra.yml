@@ -131,3 +131,32 @@ Resources:
       RouteTableId: !Ref PublicRoutingTable
       SubnetId: !Ref PublicSubnetThree
   
+  # To display the outputs of the resources created during the could formation after building the stack
+  Outputs:
+    VpcId:
+      Description: My VPC ID
+      Value: !Ref myVPC
+      Export:
+        Name: !Sub ${AWS::StackName}-VPC
+
+    PublicSubnets:
+      Description: List of all the public subnets created
+      Value: !Join [ ",", [ !Ref PublicSubnetOne, !Ref PublicSubnetTwo, !Ref PublicSubnetThree ]]
+
+    PublicSubnet1:
+      Description: Public Subnet 1
+      Value: !Ref PublicSubnetOne
+      Export:
+        Name: !Sub ${AWS::StackName}-PublicSubnetOne
+
+    PublicSubnet2:
+      Description: Public Subnet 2
+      Value: !Ref PublicSubnetTwo
+      Export:
+        Name: !Sub ${AWS::StackName}-PublicSubnetTwo
+
+    PublicSubnet3:
+      Description: Public Subnet 3
+      Value: !Ref PublicSubnetThree
+      Export:
+        Name: !Sub ${AWS::StackName}-PublicSubnetThree
