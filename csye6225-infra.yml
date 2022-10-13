@@ -26,7 +26,6 @@ Parameters:
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
 Resources:
-
 #creating my vpc
   myVPC:
     Type: AWS::EC2::VPC
@@ -49,7 +48,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${AWS::StackName}-Subnet-1
+          Value: !Sub ${AWS::StackName}-Public Subnet-1
 
   # creating Subnet 2:
   PublicSubnetTwo:
@@ -61,7 +60,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${AWS::StackName}-Subnet-2
+          Value: !Sub ${AWS::StackName}-Public Subnet-2
 
   # creating Subnet 3:
   PublicSubnetThree:
@@ -73,7 +72,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${AWS::StackName}-Subnet-3
+          Value: !Sub ${AWS::StackName}-Public Subnet-3
 
   #setting up the Internet Gateway for myVPC
   InternetGatewayBlock:
@@ -132,7 +131,7 @@ Resources:
       SubnetId: !Ref PublicSubnetThree
   
   # To display the outputs of the resources created during the could formation after building the stack
-  Outputs:
+Outputs:
     VpcId:
       Description: My VPC ID
       Value: !Ref myVPC
@@ -147,16 +146,18 @@ Resources:
       Description: Public Subnet 1
       Value: !Ref PublicSubnetOne
       Export:
-        Name: !Sub ${AWS::StackName}-PublicSubnetOne
+        Name: !Sub ${AWS::StackName}-Public-Subnet-1
 
     PublicSubnet2:
       Description: Public Subnet 2
       Value: !Ref PublicSubnetTwo
       Export:
-        Name: !Sub ${AWS::StackName}-PublicSubnetTwo
+        Name: !Sub ${AWS::StackName}-Public-Subnet-2
 
     PublicSubnet3:
       Description: Public Subnet 3
       Value: !Ref PublicSubnetThree
       Export:
-        Name: !Sub ${AWS::StackName}-PublicSubnetThree
+        Name: !Sub ${AWS::StackName}-Public-Subnet-3
+
+
