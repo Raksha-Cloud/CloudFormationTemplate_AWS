@@ -30,10 +30,10 @@ Parameters:
     AllowedValues: [t2.micro]
     ConstraintDescription : "only t2.micro type of instance allowed"
 
-  AMI_ID:
+  AmiID:
     Description: "Amazon Machine Image ID"
     Type: String
-    Default: "ami-08c40ec9ead489470"
+    Default: "ami-0936d628dd7e61611"
 
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
@@ -175,9 +175,10 @@ Resources:
     Type: "AWS::EC2::Instance"
     Properties:
       InstanceType: !Ref EC2InstanceType
-      SecurityGroups: - !Ref Ec2SecurityGroup
+      SecurityGroupIds: 
+        - !Ref Ec2SecurityGroup
       KeyName: aws
-      ImageId: !Ref AMI_ID
+      ImageId: !Ref AmiID
       SubnetId: !Ref PublicSubnetOne
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
