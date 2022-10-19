@@ -2,7 +2,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 #Cloud formation template description
-Description: Creating cloud formation template that can be used to set up required networking resources such as VPC, Internet Gateway and Route Tables. 
+Description: Creating cloud formation template that can be used to set up required networking resources such as VPC, Internet Gateway and Route Tables.
 
 #Values to pass to your template at runtime (when you create or update a stack)
 Parameters:
@@ -23,10 +23,22 @@ Parameters:
     Description: IP range for the Subnet 3
     Default: "10.1.3.0/24"
 
+  EC2InstanceType:
+    Default: t2.micro
+    Type: String
+    Description: "Application Instance EC2Instance"
+    AllowedValues: [t2.micro]
+    ConstraintDescription : "only t2.micro type of instance allowed"
+
+  AMI_ID:
+    Description: "Amazon Machine Image ID"
+    Type: String
+    Default: "ami-08c40ec9ead489470"
+
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
 Resources:
-#creating my vpc
+  #creating my vpc
   myVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -37,7 +49,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref AWS::StackName
-    
+
   # creating Subnet 1:
   PublicSubnetOne:
     Type: AWS::EC2::Subnet
@@ -89,7 +101,6 @@ Resources:
       InternetGatewayId: !Ref InternetGatewayBlock
       VpcId: !Ref myVPC
 
-
   # Routing Table:
   PublicRoutingTable:
     Type: AWS::EC2::RouteTable
@@ -98,7 +109,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Public Routing Table
-      
 
   # Route in routingTable
   PublicDefaultRoute:
@@ -109,55 +119,106 @@ Resources:
       GatewayId: !Ref InternetGatewayBlock
       RouteTableId: !Ref PublicRoutingTable
 
-  #Attaching Public subnet 1 to the Public Routing Table  
+  #Attaching Public subnet 1 to the Public Routing Table
   PublicSubnet1RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRoutingTable
       SubnetId: !Ref PublicSubnetOne
 
-  #Attaching Public subnet 2 to the Public Routing Table  
+  #Attaching Public subnet 2 to the Public Routing Table
   PublicSubnet2RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRoutingTable
       SubnetId: !Ref PublicSubnetTwo
 
-  #Attaching Public subnet 3 to the Public Routing Table 
+  #Attaching Public subnet 3 to the Public Routing Table
   PublicSubnet3RouteTableAAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PublicRoutingTable
       SubnetId: !Ref PublicSubnetThree
-  
+
+  Ec2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "ApplicationSecurityGroup"
+      GroupDescription: "Application Security Group to enable SSH access via port 22,80,443 and 3300"
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+
+        - CidrIp: 0.0.0.0/0
+          FromPort: 3300
+          IpProtocol: tcp
+          ToPort: 3300
+
+      Tags: 
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Ec2SecurityGroup
+
+  Ec2AppInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !Ref EC2InstanceType
+      SecurityGroups: - !Ref Ec2SecurityGroup
+      KeyName: aws
+      ImageId: !Ref AMI_ID
+      SubnetId: !Ref PublicSubnetOne
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp2
+            DeleteOnTermination: true
+            VolumeSize: 50
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Ec2Instance
+
   # To display the outputs of the resources created during the could formation after building the stack
 Outputs:
-    VpcId:
-      Description: My VPC ID
-      Value: !Ref myVPC
-      Export:
-        Name: !Sub ${AWS::StackName}-VPC
+  VpcId:
+    Description: My VPC ID
+    Value: !Ref myVPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC
 
-    PublicSubnets:
-      Description: List of all the public subnets created
-      Value: !Join [ ",", [ !Ref PublicSubnetOne, !Ref PublicSubnetTwo, !Ref PublicSubnetThree ]]
+  PublicSubnets:
+    Description: List of all the public subnets created
+    Value:
+      !Join [
+        ",",
+        [!Ref PublicSubnetOne, !Ref PublicSubnetTwo, !Ref PublicSubnetThree],
+      ]
 
-    PublicSubnet1:
-      Description: Public Subnet 1
-      Value: !Ref PublicSubnetOne
-      Export:
-        Name: !Sub ${AWS::StackName}-Public-Subnet-1
+  PublicSubnet1:
+    Description: Public Subnet 1
+    Value: !Ref PublicSubnetOne
+    Export:
+      Name: !Sub ${AWS::StackName}-Public-Subnet-1
 
-    PublicSubnet2:
-      Description: Public Subnet 2
-      Value: !Ref PublicSubnetTwo
-      Export:
-        Name: !Sub ${AWS::StackName}-Public-Subnet-2
+  PublicSubnet2:
+    Description: Public Subnet 2
+    Value: !Ref PublicSubnetTwo
+    Export:
+      Name: !Sub ${AWS::StackName}-Public-Subnet-2
 
-    PublicSubnet3:
-      Description: Public Subnet 3
-      Value: !Ref PublicSubnetThree
-      Export:
-        Name: !Sub ${AWS::StackName}-Public-Subnet-3
-
-
+  PublicSubnet3:
+    Description: Public Subnet 3
+    Value: !Ref PublicSubnetThree
+    Export:
+      Name: !Sub ${AWS::StackName}-Public-Subnet-3
