@@ -22,18 +22,16 @@ Parameters:
     Type: String
     Description: IP range for the Subnet 3
     Default: "10.1.3.0/24"
-
+  AmiID:
+    Description: "Amazon Machine Image ID"
+    Type: String
+    Default: "ami-08c40ec9ead489470"
   EC2InstanceType:
     Default: t2.micro
     Type: String
     Description: "Application Instance EC2Instance"
     AllowedValues: [t2.micro]
     ConstraintDescription : "only t2.micro type of instance allowed"
-
-  AmiID:
-    Description: "Amazon Machine Image ID"
-    Type: String
-    Default: "ami-0936d628dd7e61611"
 
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
