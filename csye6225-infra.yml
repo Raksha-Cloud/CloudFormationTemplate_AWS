@@ -9,30 +9,88 @@ Parameters:
   VpcCidrBlock:
     Type: String
     Description: IP Range for Virtual Private Cloud
-    Default: "10.1.1.0/24"
+    Default: "10.0.0.0/16"
   subnet1CidrBlock:
     Type: String
-    Description: IP range for the Subnet 1
-    Default: "10.1.1.0/24"
+    Description: IP range for the Public Subnet 1
+    Default: "10.0.1.0/24"
   subnet2CidrBlock:
     Type: String
-    Description: IP range for the Subnet 2
-    Default: "10.1.2.0/24"
+    Description: IP range for the public Subnet 2
+    Default: "10.0.2.0/24"
   subnet3CidrBlock:
     Type: String
-    Description: IP range for the Subnet 3
-    Default: "10.1.3.0/24"
+    Description: IP range for the public Subnet 3
+    Default: "10.0.3.0/24"
+  PrivateSubnet1CidrBlock:
+    Type: String
+    Description: IP range for the private Subnet 1
+    Default: "10.0.148.0/18"
+  PrivateSubnet2CidrBlock:
+    Type: String
+    Description: IP range for the private Subnet 2
+    Default: "10.0.149.0/24"
+  PrivateSubnet3CidrBlock:
+    Type: String
+    Description: IP range for the private Subnet 3
+    Default: "10.0.150.0/24"
   AmiID:
     Description: "Amazon Machine Image ID"
     Type: String
-    Default: "ami-08c40ec9ead489470"
+    Default: "ami-0f11aada8dd6f1f89"
   EC2InstanceType:
     Default: t2.micro
     Type: String
     Description: "Application Instance EC2Instance"
     AllowedValues: [t2.micro]
     ConstraintDescription : "only t2.micro type of instance allowed"
-
+  DBName:
+    Type: String
+    Default: "csye6225"
+    Description: "Database Name"
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
+    MaxLength: 60
+    MinLength: 1
+  DBUserName :
+    Type: String
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
+    MaxLength: 16
+    MinLength: 1
+    Default: "csye6225"
+    Description: "DB username"
+  DBPassword:
+    Type: String
+    Default: "csye6225Admin"
+    Description: "parameter for DB Password" 
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
+    MaxLength: 41
+    MinLength: 8
+  DBInstanceType:
+      AllowedValues:
+        - db.t3.micro
+      Default: db.t3.micro
+      Type: String
+  DBInstanceIdentifierName:
+    Type: String
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
+    Default: "csye6225"
+    Description: "parameter for DB Instance Identifier Name"
+  DBBackupDays:
+    Default: 0
+    MaxValue: 35
+    MinValue: 0
+    Type: Number
+  EnvName:
+    Type: String
+    Description: "Environment Name"
+    Default : "dev"
+    AllowedValues:
+      - dev
+      - prod
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
 Resources:
@@ -48,36 +106,38 @@ Resources:
         - Key: Name
           Value: !Ref AWS::StackName
 
-  # creating Subnet 1:
+  # creating public Subnet 1:
   PublicSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: !Ref subnet1CidrBlock
+      VpcId:
+        Ref: myVPC
+      CidrBlock: !Select [ 0, !Cidr [ !GetAtt myVPC.CidrBlock, 1, 8 ]]
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Public Subnet-1
-
-  # creating Subnet 2:
+  # creating public Subnet 2:
   PublicSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: !Ref subnet2CidrBlock
+      VpcId:
+        Ref: myVPC
+      CidrBlock: !Select [ 1, !Cidr [ !GetAtt myVPC.CidrBlock, 2, 8 ]]
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Public Subnet-2
 
-  # creating Subnet 3:
+  # creating public Subnet 3:
   PublicSubnetThree:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: !Ref subnet3CidrBlock
+      VpcId:
+        Ref: myVPC
+      CidrBlock: !Select [ 2, !Cidr [ !GetAtt myVPC.CidrBlock, 3, 8 ]]
       AvailabilityZone: !Select [2, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
@@ -99,7 +159,7 @@ Resources:
       InternetGatewayId: !Ref InternetGatewayBlock
       VpcId: !Ref myVPC
 
-  # Routing Table:
+  # creating public Routing Table:
   PublicRoutingTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -108,7 +168,7 @@ Resources:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Public Routing Table
 
-  # Route in routingTable
+  # setting up public Route in routingTable
   PublicDefaultRoute:
     Type: AWS::EC2::Route
     DependsOn: InternetGatewayAttach
@@ -137,7 +197,79 @@ Resources:
     Properties:
       RouteTableId: !Ref PublicRoutingTable
       SubnetId: !Ref PublicSubnetThree
-
+  
+  # creating private Subnet 1:
+  PrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock: !Select [ 3, !Cidr [ !GetAtt myVPC.CidrBlock, 4, 8 ]]
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Private Subnet-1
+  # creating private Subnet 2:
+  PrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock: !Select [ 4, !Cidr [ !GetAtt myVPC.CidrBlock, 5, 8 ]]
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Private Subnet-2
+  # creating private Subnet 3:
+  PrivateSubnetThree:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock: !Select [ 5, !Cidr [ !GetAtt myVPC.CidrBlock, 6, 8 ]]
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Private Subnet-3
+  # private Routing Table:
+  PrivateRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Private Routing Table
+  #Attaching Private subnet 1 to the Private Routing Table
+  PrivateSubnet1RouteTableAttach:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRoutingTable
+      SubnetId: !Ref PrivateSubnetOne
+  #Attaching Private subnet 2 to the Private Routing Table
+  PrivateSubnet2RouteTableAttach:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRoutingTable
+      SubnetId: !Ref PrivateSubnetTwo
+  #Attaching Private subnet 3 to the Private Routing Table
+  PrivateSubnet3RouteTableAttach:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRoutingTable
+      SubnetId: !Ref PrivateSubnetThree
+  # Creating Subnet Group in the VPC for RDS
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub RDS Subnet Groups
+      SubnetIds:
+        - !Ref PrivateSubnetOne
+        - !Ref PrivateSubnetTwo
+        - !Ref PrivateSubnetThree
+  #setting up security group for 
   Ec2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -168,9 +300,126 @@ Resources:
       Tags: 
         - Key: Name
           Value: !Sub ${AWS::StackName}-Ec2SecurityGroup
-
+  # Security Group for RDS with inbound rules from EC2 Instance Security Group
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: Ec2SecurityGroup
+    Properties:
+      GroupName: "DBSecurityGroup"
+      GroupDescription: "Enabling only database port access"
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref Ec2SecurityGroup
+  # S3 bucket with encryption and lifecycle          
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        !Join [
+          "",
+          [
+            "csye6225bucket-",
+            !Select [0, !Split [-, !Select [2, !Split [/, !Ref AWS::StackId]]]],
+            ".",
+            !Ref EnvName,
+            ".rakshakr.me",
+          ],
+        ]     
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: MoveToStorageClassStandardToStandardIA
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  # Creating RDS Parameter Group for Postgres DB
+  RDSParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: CloudFormation of RDS with postgres Parameter Group
+      Family: postgres13
+      Parameters:
+        shared_preload_libraries: "pg_stat_statements"
+  # Create RDS Instance with MySQL 8.0 and RDS Subnet Group and Parameter Group
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    DependsOn:
+      - RDSSecurityGroup
+      - RDSSubnetGroup
+      - RDSParameterGroup
+    Properties:
+      Engine: postgres
+      EngineVersion: 13
+      DBInstanceClass: !Ref DBInstanceType
+      MultiAZ: false
+      DBInstanceIdentifier: !Ref DBInstanceIdentifierName
+      MasterUsername: !Ref DBUserName
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      PubliclyAccessible: false
+      DBName: !Ref DBName
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBParameterGroupName: !Ref RDSParameterGroup
+      DeleteAutomatedBackups: true
+      AllocatedStorage: 5
+      BackupRetentionPeriod: !Ref DBBackupDays
+  # Create IAM Role for EC2 Instance with S3 Bucket Policy
+  S3IamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: "creating IAM role to access s3 from webapp to store data "
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket ] ]
+                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket, ".rakshakagadalu.me/*" ] ]
+  # Create Iam Instance Profile
+  S3IamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: S3IamRole
+    Properties:
+      InstanceProfileName: S3IamInstanceProfile
+      Path: /
+      Roles:
+        - !Ref S3IamRole
+  #EC2 instance
   Ec2AppInstance:
     Type: "AWS::EC2::Instance"
+    DependsOn:
+      - RDSInstance
+      - S3Bucket
+      - S3IamInstanceProfile
     Properties:
       InstanceType: !Ref EC2InstanceType
       SecurityGroupIds: 
@@ -184,11 +433,43 @@ Resources:
             VolumeType: gp2
             DeleteOnTermination: true
             VolumeSize: 50
+      IamInstanceProfile: !Ref S3IamInstanceProfile
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash
+          DB_HOST=${RDSInstance.Endpoint.Address}
+          AWS_BUCKET_NAME=${S3Bucket}
+          DB_USERNAME=${DBUserName}
+          DB_PASSWORD=${DBPassword}
+          DB_NAME=${DBName}
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          {
+            echo "DB_HOST=$DB_HOST"
+            echo "DB_PORT=5432"
+            echo "DB_USERNAME=$DB_USERNAME"
+            echo "DB_PASSWORD=$DB_PASSWORD"
+            echo "DB_NAME=$DB_NAME"
+            echo "PORT=3300"
+            echo "AWS_BUCKET_NAME=$AWS_BUCKET_NAME"
+          } >>/home/ubuntu/application.env
+          echo "#############################Installing node application############################"
+          cd /home/ubuntu || exit
+          sudo npm install
+          pwd
+          echo "Copying the service file to /etc/systemd/system/ to run the webapp automatically"
+          sudo mv /home/ubuntu/webapp.service /etc/systemd/system/webapp.service
+          echo "Enabling and Starting the node server service"
+          sudo systemctl enable webapp.service
+          sudo systemctl start webapp.service
+          echo "#############################Installing node application############################"
+          
+
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Ec2Instance
-
-  # To display the outputs of the resources created during the could formation after building the stack
+# To display the outputs of the resources created during the could formation after building the stack
 Outputs:
   VpcId:
     Description: My VPC ID
