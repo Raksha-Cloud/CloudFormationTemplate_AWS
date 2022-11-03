@@ -44,6 +44,13 @@ Parameters:
     Description: "Application Instance EC2Instance"
     AllowedValues: [t2.micro]
     ConstraintDescription : "only t2.micro type of instance allowed"
+  EnvName:
+    Type: String
+    Description: "Environment Name"
+    Default : "demo"
+    AllowedValues:
+      - dev
+      - demo
   DBName:
     Type: String
     Default: "csye6225"
@@ -68,6 +75,11 @@ Parameters:
     ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
     MaxLength: 41
     MinLength: 8
+  DBBackupDays:
+    Default: 0
+    MaxValue: 1
+    MinValue: 0
+    Type: Number
   DBInstanceType:
       AllowedValues:
         - db.t3.micro
@@ -79,18 +91,8 @@ Parameters:
     ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
     Default: "csye6225"
     Description: "parameter for DB Instance Identifier Name"
-  DBBackupDays:
-    Default: 0
-    MaxValue: 35
-    MinValue: 0
-    Type: Number
-  EnvName:
-    Type: String
-    Description: "Environment Name"
-    Default : "dev"
-    AllowedValues:
-      - dev
-      - prod
+
+
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
 Resources:
@@ -210,6 +212,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Subnet-1
+  
   # creating private Subnet 2:
   PrivateSubnetTwo:
     Type: AWS::EC2::Subnet
@@ -222,6 +225,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Subnet-2
+  
   # creating private Subnet 3:
   PrivateSubnetThree:
     Type: AWS::EC2::Subnet
@@ -234,6 +238,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Subnet-3
+  
   # private Routing Table:
   PrivateRoutingTable:
     Type: AWS::EC2::RouteTable
@@ -242,24 +247,100 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Routing Table
+  
   #Attaching Private subnet 1 to the Private Routing Table
   PrivateSubnet1RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRoutingTable
       SubnetId: !Ref PrivateSubnetOne
+  
   #Attaching Private subnet 2 to the Private Routing Table
   PrivateSubnet2RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRoutingTable
       SubnetId: !Ref PrivateSubnetTwo
+  
   #Attaching Private subnet 3 to the Private Routing Table
   PrivateSubnet3RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRoutingTable
       SubnetId: !Ref PrivateSubnetThree
+  
+  # S3 bucket with encryption and lifecycle          
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        !Join [
+          "",
+          [
+            "csye6225bucket-",
+            !Select [0, !Split [-, !Select [2, !Split [/, !Ref AWS::StackId]]]],
+            ".",
+            !Ref EnvName,
+            ".rakshakagadaluraju.me",
+          ],
+        ]     
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: MoveToStorageClassStandardToStandardIA
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  
+  # Create IAM Role for EC2 Instance with S3 Bucket Policy
+  S3IamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: "creating IAM role to access s3 from webapp to store data "
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket ] ]
+                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
+  
+  # Create Iam Instance Profile
+  S3IamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: S3IamRole
+    Properties:
+      InstanceProfileName: S3IamInstanceProfile
+      Path: /
+      Roles:
+        - !Ref S3IamRole
+  
   # Creating Subnet Group in the VPC for RDS
   RDSSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -269,6 +350,55 @@ Resources:
         - !Ref PrivateSubnetOne
         - !Ref PrivateSubnetTwo
         - !Ref PrivateSubnetThree
+  
+  # Creating RDS Parameter Group for Postgres DB
+  RDSParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: CloudFormation of RDS with postgres Parameter Group
+      Family: postgres13
+      Parameters:
+        shared_preload_libraries: "pg_stat_statements"
+  
+  # Create RDS Instance with MySQL 8.0 and RDS Subnet Group and Parameter Group
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    DependsOn:
+      - RDSSecurityGroup
+      - RDSSubnetGroup
+      - RDSParameterGroup
+    Properties:
+      Engine: postgres
+      EngineVersion: 13
+      DBInstanceClass: !Ref DBInstanceType
+      MultiAZ: false
+      DBInstanceIdentifier: !Ref DBInstanceIdentifierName
+      MasterUsername: !Ref DBUserName
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      PubliclyAccessible: false
+      DBName: !Ref DBName
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBParameterGroupName: !Ref RDSParameterGroup
+      DeleteAutomatedBackups: true
+      AllocatedStorage: 5
+      BackupRetentionPeriod: !Ref DBBackupDays
+  
+  # Security Group for RDS with inbound rules from EC2 Instance Security Group
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: Ec2SecurityGroup
+    Properties:
+      GroupName: "DBSecurityGroup"
+      GroupDescription: "Enabling only database port access"
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref Ec2SecurityGroup
+  
   #setting up security group for 
   Ec2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -300,120 +430,7 @@ Resources:
       Tags: 
         - Key: Name
           Value: !Sub ${AWS::StackName}-Ec2SecurityGroup
-  # Security Group for RDS with inbound rules from EC2 Instance Security Group
-  RDSSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    DependsOn: Ec2SecurityGroup
-    Properties:
-      GroupName: "DBSecurityGroup"
-      GroupDescription: "Enabling only database port access"
-      VpcId: !Ref myVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          SourceSecurityGroupId: !Ref Ec2SecurityGroup
-  # S3 bucket with encryption and lifecycle          
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName:
-        !Join [
-          "",
-          [
-            "csye6225bucket-",
-            !Select [0, !Split [-, !Select [2, !Split [/, !Ref AWS::StackId]]]],
-            ".",
-            !Ref EnvName,
-            ".rakshakr.me",
-          ],
-        ]     
-      PublicAccessBlockConfiguration: 
-        BlockPublicAcls: true
-        IgnorePublicAcls: true
-        BlockPublicPolicy: true
-        RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: MoveToStorageClassStandardToStandardIA
-            Status: Enabled
-            Transitions:
-              - StorageClass: STANDARD_IA
-                TransitionInDays: 30
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-  # Creating RDS Parameter Group for Postgres DB
-  RDSParameterGroup:
-    Type: 'AWS::RDS::DBParameterGroup'
-    Properties:
-      Description: CloudFormation of RDS with postgres Parameter Group
-      Family: postgres13
-      Parameters:
-        shared_preload_libraries: "pg_stat_statements"
-  # Create RDS Instance with MySQL 8.0 and RDS Subnet Group and Parameter Group
-  RDSInstance:
-    Type: AWS::RDS::DBInstance
-    DependsOn:
-      - RDSSecurityGroup
-      - RDSSubnetGroup
-      - RDSParameterGroup
-    Properties:
-      Engine: postgres
-      EngineVersion: 13
-      DBInstanceClass: !Ref DBInstanceType
-      MultiAZ: false
-      DBInstanceIdentifier: !Ref DBInstanceIdentifierName
-      MasterUsername: !Ref DBUserName
-      MasterUserPassword: !Ref DBPassword
-      DBSubnetGroupName: !Ref RDSSubnetGroup
-      PubliclyAccessible: false
-      DBName: !Ref DBName
-      VPCSecurityGroups:
-        - !Ref RDSSecurityGroup
-      DBParameterGroupName: !Ref RDSParameterGroup
-      DeleteAutomatedBackups: true
-      AllocatedStorage: 5
-      BackupRetentionPeriod: !Ref DBBackupDays
-  # Create IAM Role for EC2 Instance with S3 Bucket Policy
-  S3IamRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Description: "creating IAM role to access s3 from webapp to store data "
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Policies:
-        - PolicyName: S3Access
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:ListBucket
-                Resource:
-                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket ] ]
-                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
-  # Create Iam Instance Profile
-  S3IamInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    DependsOn: S3IamRole
-    Properties:
-      InstanceProfileName: S3IamInstanceProfile
-      Path: /
-      Roles:
-        - !Ref S3IamRole
+  
   #EC2 instance
   Ec2AppInstance:
     Type: "AWS::EC2::Instance"
@@ -463,17 +480,34 @@ Resources:
           sudo chmod -R 777 ./Routes/uploads
           sudo npm install
           pwd
+          echo "#######using iptables to forward request coming in on port 80 to port 3000 internally.######"
+          sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 3300
           echo "Copying the service file to /etc/systemd/system/ to run the webapp automatically"
           sudo mv /home/ubuntu/webapp.service /etc/systemd/system/webapp.service
           echo "Enabling and Starting the node server service"
           sudo systemctl enable webapp.service
           sudo systemctl start webapp.service
+
+
           echo "#############################Installing node application############################"
           
 
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Ec2Instance
+  
+  # Creating Route 53 A record  aliasing to the Load Balancer
+  myDNSRecordSet:
+     Type: AWS::Route53::RecordSet
+     Properties:
+       HostedZoneName: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
+       Name: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
+       Type: A
+       TTL: 60
+       ResourceRecords:
+        - !GetAtt Ec2AppInstance.PublicIp 
+
+
 # To display the outputs of the resources created during the could formation after building the stack
 Outputs:
   VpcId:

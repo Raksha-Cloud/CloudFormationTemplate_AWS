@@ -94,7 +94,15 @@ You must be able to use the same CloudFormation template in the same AWS account
     ```
     $ aws cloudformation create-stack --stack-name demoTest1 --template-body file://csye6225-infra.yml --parameter ParameterKey=VpcCidrBlock,ParameterValue="10.0.0.0/16" ParameterKey=subnet1CidrBlock,ParameterValue="10.0.13.0/24" ParameterKey=subnet2CidrBlock,ParameterValue="10.0.12.0/24" ParameterKey=subnet3CidrBlock,ParameterValue="10.0.11.0/24" ParameterKey=AmiID,ParameterValue="--------"
     ```
+- After addind s3, rds and dns
+    ```
+    $ aws cloudformation create-stack --stack-name demoTest2 --template-body file://csye6225-infra.yml --parameter ParameterKey=AmiID,ParameterValue="---" --capabilities CAPABILITY_NAMED_IAM
+
+    ```
+
 - Run the below command to `delete` your `stack` 
+  
+- To delete all objects from the bucket manually using the CLI before you delete the bucket you can use the following AWS CLI command that may work for removing all objects from the bucket. ``` aws s3 rm s3://bucket-name --recursive. ```
     ```
     $ aws cloudformation delete-stack --stack-name test2
     ```
