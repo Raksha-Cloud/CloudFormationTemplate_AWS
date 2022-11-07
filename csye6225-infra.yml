@@ -313,6 +313,8 @@ Resources:
             Principal:
               Service:
                 - ec2.amazonaws.com
+                - streams.metrics.cloudwatch.amazonaws.com
+                - cloudwatch-crossaccount.amazonaws.com
             Action:
               - sts:AssumeRole
       Path: /
@@ -330,7 +332,9 @@ Resources:
                 Resource:
                   - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket ] ]
                   - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
-  
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - "arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy"
   # Create Iam Instance Profile
   S3IamInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -485,6 +489,8 @@ Resources:
           echo "Enabling and Starting the node server service"
           sudo systemctl enable webapp.service
           sudo systemctl start webapp.service
+
+          sudo systemctl restart amazon-cloudwatch-agent
 
 
           echo "#############################Installing node application############################"
