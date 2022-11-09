@@ -108,5 +108,5 @@ You must be able to use the same CloudFormation template in the same AWS account
     ```
 - To view your stack , run the following command
     ```
-    $ `aws --profile=dev ec2 describe-vpcs`
+    $ `aws --profile=dev ec2 describe-vpcs` .
     ```
