@@ -43,11 +43,11 @@ Parameters:
     Type: String
     Description: "Application Instance EC2Instance"
     AllowedValues: [t2.micro]
-    ConstraintDescription : "only t2.micro type of instance allowed"
+    ConstraintDescription: "only t2.micro type of instance allowed"
   EnvName:
     Type: String
     Description: "Environment Name"
-    Default : "demo"
+    Default: "demo"
     AllowedValues:
       - dev
       - demo
@@ -59,7 +59,7 @@ Parameters:
     ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
     MaxLength: 60
     MinLength: 1
-  DBUserName :
+  DBUserName:
     Type: String
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
@@ -70,7 +70,7 @@ Parameters:
   DBPassword:
     Type: String
     Default: "csye6225Admin"
-    Description: "parameter for DB Password" 
+    Description: "parameter for DB Password"
     AllowedPattern: "[a-zA-Z0-9]*"
     ConstraintDescription: Should begin with a letter and contain only alphanumeric characters
     MaxLength: 41
@@ -81,17 +81,16 @@ Parameters:
     MinValue: 0
     Type: Number
   DBInstanceType:
-      AllowedValues:
-        - db.t3.micro
-      Default: db.t3.micro
-      Type: String
+    AllowedValues:
+      - db.t3.micro
+    Default: db.t3.micro
+    Type: String
   DBInstanceIdentifierName:
     Type: String
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
     ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
     Default: "csye6225"
     Description: "parameter for DB Instance Identifier Name"
-
 
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
@@ -114,7 +113,7 @@ Resources:
     Properties:
       VpcId:
         Ref: myVPC
-      CidrBlock: !Select [ 0, !Cidr [ !GetAtt myVPC.CidrBlock, 1, 8 ]]
+      CidrBlock: !Select [0, !Cidr [!GetAtt myVPC.CidrBlock, 1, 8]]
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
@@ -126,7 +125,7 @@ Resources:
     Properties:
       VpcId:
         Ref: myVPC
-      CidrBlock: !Select [ 1, !Cidr [ !GetAtt myVPC.CidrBlock, 2, 8 ]]
+      CidrBlock: !Select [1, !Cidr [!GetAtt myVPC.CidrBlock, 2, 8]]
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
@@ -139,7 +138,7 @@ Resources:
     Properties:
       VpcId:
         Ref: myVPC
-      CidrBlock: !Select [ 2, !Cidr [ !GetAtt myVPC.CidrBlock, 3, 8 ]]
+      CidrBlock: !Select [2, !Cidr [!GetAtt myVPC.CidrBlock, 3, 8]]
       AvailabilityZone: !Select [2, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
@@ -199,46 +198,46 @@ Resources:
     Properties:
       RouteTableId: !Ref PublicRoutingTable
       SubnetId: !Ref PublicSubnetThree
-  
+
   # creating private Subnet 1:
   PrivateSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
         Ref: myVPC
-      CidrBlock: !Select [ 3, !Cidr [ !GetAtt myVPC.CidrBlock, 4, 8 ]]
+      CidrBlock: !Select [3, !Cidr [!GetAtt myVPC.CidrBlock, 4, 8]]
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Subnet-1
-  
+
   # creating private Subnet 2:
   PrivateSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
         Ref: myVPC
-      CidrBlock: !Select [ 4, !Cidr [ !GetAtt myVPC.CidrBlock, 5, 8 ]]
+      CidrBlock: !Select [4, !Cidr [!GetAtt myVPC.CidrBlock, 5, 8]]
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Subnet-2
-  
+
   # creating private Subnet 3:
   PrivateSubnetThree:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
         Ref: myVPC
-      CidrBlock: !Select [ 5, !Cidr [ !GetAtt myVPC.CidrBlock, 6, 8 ]]
+      CidrBlock: !Select [5, !Cidr [!GetAtt myVPC.CidrBlock, 6, 8]]
       AvailabilityZone: !Select [2, !GetAZs ""]
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Subnet-3
-  
+
   # private Routing Table:
   PrivateRoutingTable:
     Type: AWS::EC2::RouteTable
@@ -247,29 +246,29 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Private Routing Table
-  
+
   #Attaching Private subnet 1 to the Private Routing Table
   PrivateSubnet1RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRoutingTable
       SubnetId: !Ref PrivateSubnetOne
-  
+
   #Attaching Private subnet 2 to the Private Routing Table
   PrivateSubnet2RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRoutingTable
       SubnetId: !Ref PrivateSubnetTwo
-  
+
   #Attaching Private subnet 3 to the Private Routing Table
   PrivateSubnet3RouteTableAttach:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateRoutingTable
       SubnetId: !Ref PrivateSubnetThree
-  
-  # S3 bucket with encryption and lifecycle          
+
+  # S3 bucket with encryption and lifecycle
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -283,8 +282,8 @@ Resources:
             !Ref EnvName,
             ".rakshakagadaluraju.me",
           ],
-        ]     
-      PublicAccessBlockConfiguration: 
+        ]
+      PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         IgnorePublicAcls: true
         BlockPublicPolicy: true
@@ -300,14 +299,14 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
-  
+
   # Create IAM Role for EC2 Instance with S3 Bucket Policy
   S3IamRole:
     Type: AWS::IAM::Role
     Properties:
       Description: "creating IAM role to access s3 from webapp to store data "
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -321,7 +320,7 @@ Resources:
       Policies:
         - PolicyName: S3Access
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -330,11 +329,13 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource:
-                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket ] ]
-                  - !Join [ "", [ "arn:aws:s3:::", !Ref S3Bucket, "/*" ] ]
-      ManagedPolicyArns: 
+                  - !Join ["", ["arn:aws:s3:::", !Ref S3Bucket]]
+                  - !Join ["", ["arn:aws:s3:::", !Ref S3Bucket, "/*"]]
+      ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - "arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy"
+        - "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+
   # Create Iam Instance Profile
   S3IamInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -344,7 +345,7 @@ Resources:
       Path: /
       Roles:
         - !Ref S3IamRole
-  
+
   # Creating Subnet Group in the VPC for RDS
   RDSSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -354,16 +355,16 @@ Resources:
         - !Ref PrivateSubnetOne
         - !Ref PrivateSubnetTwo
         - !Ref PrivateSubnetThree
-  
+
   # Creating RDS Parameter Group for Postgres DB
   RDSParameterGroup:
-    Type: 'AWS::RDS::DBParameterGroup'
+    Type: "AWS::RDS::DBParameterGroup"
     Properties:
       Description: CloudFormation of RDS with postgres Parameter Group
       Family: postgres13
       Parameters:
         shared_preload_libraries: "pg_stat_statements"
-  
+
   # Create RDS Instance with MySQL 8.0 and RDS Subnet Group and Parameter Group
   RDSInstance:
     Type: AWS::RDS::DBInstance
@@ -388,7 +389,7 @@ Resources:
       DeleteAutomatedBackups: true
       AllocatedStorage: 5
       BackupRetentionPeriod: !Ref DBBackupDays
-  
+
   # Security Group for RDS with inbound rules from EC2 Instance Security Group
   RDSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -402,8 +403,8 @@ Resources:
           FromPort: 5432
           ToPort: 5432
           SourceSecurityGroupId: !Ref Ec2SecurityGroup
-  
-  #setting up security group for 
+
+  #setting up security group for
   Ec2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -431,10 +432,259 @@ Resources:
           IpProtocol: tcp
           ToPort: 3300
 
-      Tags: 
+      Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Ec2SecurityGroup
-  
+
+  # Creating DynamoDB Table to store username and tokens
+  myDynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-DynamoDBTable"
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: tokenttl
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+  #Creating DynamoDB Table to store username and email verified status
+  userDynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "VerifyEmailDynamoDB"
+      BillingMode: PROVISIONED
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+
+    # Create SNS Topic
+  #creating a SNS topic for lambda function
+  mySNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-mySNSTopic"
+      DisplayName: !Sub "${AWS::StackName}-mySNSTopic"
+      Subscription:
+        - Endpoint: !GetAtt LambdaFunction.Arn
+          Protocol: "lambda"
+  # Creating SNS Topic Policy
+  mySNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2008-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - SNS:Publish
+              - SNS:Subscribe
+              - SNS:ListSubscriptionsByTopic
+              - SNS:GetTopicAttributes
+              - SNS:SetTopicAttributes
+              - SNS:AddPermission
+              - SNS:RemovePermission
+              - SNS:DeleteTopic
+            Resource: !Ref mySNSTopic
+            Condition:
+              StringEquals:
+                AWS:SourceOwner: !Ref AWS::AccountId
+      Topics:
+        - !Ref mySNSTopic
+
+    # Create Lambda Function Permission for SNS Topic
+  # setting up the lambda permissions
+  mySNSTopicLambdaPermission:
+    DependsOn: LambdaFunction
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "sns.amazonaws.com"
+      SourceArn: !Ref mySNSTopic
+  #setting up the lambda roles
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+
+    # Create a Lambda Function
+  # creating the lambda function
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: userDynamoDB
+    Properties:
+      Description: !Sub "csye6225-Verify-Email-Lambda-function"
+      FunctionName: !Sub "csye6225-Verify-Email-Lambda-function"
+      Handler: index.handler
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Runtime: nodejs14.x
+      Timeout: 300
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      PackageType: Zip
+      Environment:
+        Variables:
+          VerifyEmailDynamoDB: !Ref userDynamoDB
+          dynamoDbRegion: !Ref AWS::Region
+          domainEnv: !Ref EnvName
+      Code:
+        ZipFile: |
+          console.log('Loading Lambda function');
+          //const ses = new aws.SES({});
+
+          const AWS = require("aws-sdk");
+          const ses = new AWS.SES();
+
+          //setting the env variables from env file
+          const VerifyEmailDynamoDB = process.env.VerifyEmailDynamoDB;
+          const dynamoDbRegion = process.env.dynamoDbRegion || "us-east-1";
+          const domainEnv = process.env.domainEnv || "demo";
+
+          //Setting AWS region for ses
+          AWS.config.update({ region: dynamoDbRegion });
+
+          //Setting DB client for dynamo db
+          const dynamoClient = new AWS.DynamoDB.DocumentClient({
+              region: dynamoDbRegion,
+            });
+
+          //Setting up handler
+          exports.handler = async (event, context, callback) => {
+
+            const message = event.Records[0].Sns.Message;
+            console.log("Message received from SNS:", message);
+
+          //parse the event and store the event information
+            const parsedData = JSON.parse(message);
+            console.log("Data from parsed data:", parsedData);
+            const messageType = parsedData.message_type;
+            console.log("Message type type from parsed data:", messageType);
+            const username = parsedData.username;
+            console.log("username from parsed data:", username);
+            const first_name = parsedData.first_name;
+            console.log("First name from parsed data:", first_name);
+            const last_name = parsedData.last_name;
+            console.log("Last name from parsed data:", last_name);
+            const userToken = parsedData.userToken;
+            console.log("User token from parsed data:", userToken);
+
+          //check if the email is already sent to user
+            const emailStatus = await checkEmailStatus(
+              dynamoClient,
+              VerifyEmailDynamoDB,
+              username
+            );
+
+          //if email is not sent to user send a new verification email using SES
+            if (!emailStatus) {
+              console.log("Sending verification email to the user: " + username);
+              const params = {
+                        Destination: {
+                          ToAddresses: [username],
+                        },
+                        Message: {
+                          Body: {
+                            Html: {
+                              Charset: "UTF-8",
+                              Data: `<h3> Hello ${first_name} ${last_name},</h3>
+                                    <h4>  Welcome to ${domainEnv}.rakshakagadaluraju.me </h4><br>
+                                    <p>Please click the following link: <a href="http://${domainEnv}.rakshakagadaluraju.me/v1/verifyUser?email=${username}&token=${userToken}">Email verification link</a> or <br>
+                                    paste the following link in the browser: http://${domainEnv}.rakshakagadaluraju.me/v1/verifyUser?email=${username}&token=${userToken} to verify your account with us.<br><br><br><br>
+                                    Regards,<br>
+                                    Team rakshakagadaluraju.me<br></p><br>`,
+                            },
+                          },
+                          Subject: {
+                            Charset: "UTF-8",
+                            Data: `Email verification : for domain ${domainEnv}.rakshakagadaluraju.me`,
+                          },
+                        },
+                        Source: `noreply@${domainEnv}.rakshakagadaluraju.me`,
+                      };
+
+              const data = await ses.sendEmail(params).promise();
+              console.log(data);
+              console.log("Verification email sent to new user through SES successfully");
+
+              // update the email sent to user in dynamo DB
+              await updateEmailStatusToDB(
+                dynamoClient,
+                VerifyEmailDynamoDB,
+                username
+              );
+              console.log("Email updated to DynamoDB");
+            } else {
+              console.log(
+                "Verification email already sent to user: " + username );
+            }
+            callback(null, "success");
+          };
+
+          //function to update verification email status to user
+          const updateEmailStatusToDB = async (
+              dynamoClient,
+              VerifyEmailDynamoDB,
+              username
+            ) => {
+              const params = {
+                TableName: VerifyEmailDynamoDB,
+                Item: {
+                  email: username,
+                },
+              };
+              const data = await dynamoClient.put(params).promise();
+              console.log("Data:", data);
+            };
+            
+          //function to check if verification email is sent to user
+          const checkEmailStatus = async (
+              dynamoClient,
+              VerifyEmailDynamoDB,
+              username
+            ) => {
+              const params = {
+                TableName: VerifyEmailDynamoDB,
+                Key: {
+                  email: username,
+                },
+              };
+              const data = await dynamoClient.get(params).promise();
+              console.log("Data:", data);
+              if (data.Item) {
+                return true;
+              } else {
+                return false;
+              }
+            };
+
   #EC2 instance
   Ec2AppInstance:
     Type: "AWS::EC2::Instance"
@@ -444,7 +694,7 @@ Resources:
       - S3IamInstanceProfile
     Properties:
       InstanceType: !Ref EC2InstanceType
-      SecurityGroupIds: 
+      SecurityGroupIds:
         - !Ref Ec2SecurityGroup
       KeyName: aws
       ImageId: !Ref AmiID
@@ -457,26 +707,31 @@ Resources:
             VolumeSize: 50
       IamInstanceProfile: !Ref S3IamInstanceProfile
       UserData:
-        Fn::Base64:
-          !Sub |
+        Fn::Base64: !Sub |
           #!/bin/bash
           DB_HOST=${RDSInstance.Endpoint.Address}
+          DYNAMO_DB_TABLE_NAME=${myDynamoDB}
+          AWS_REGION=${AWS::Region}
+          SNS_TOPIC_ARN=${mySNSTopic}
           AWS_BUCKET_NAME=${S3Bucket}
           DB_USERNAME=${DBUserName}
           DB_PASSWORD=${DBPassword}
           DB_NAME=${DBName}
-          
           sudo apt-get update
           sudo apt-get upgrade -y
           {
             echo "DB_HOST=$DB_HOST"
             echo "DB_PORT=5432"
+            echo "AWS_BUCKET_NAME=$AWS_BUCKET_NAME"
+            echo "DYNAMO_DB_TABLE_NAME=$DYNAMO_DB_TABLE_NAME"
+            echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
+            echo "AWS_REGION=$AWS_REGION"
             echo "DB_USERNAME=$DB_USERNAME"
             echo "DB_PASSWORD=$DB_PASSWORD"
             echo "DB_NAME=$DB_NAME"
             echo "PORT=3300"
-            echo "AWS_BUCKET_NAME=$AWS_BUCKET_NAME"
-            echo "AWS_REGION = us-east-1"
+
+            
           } >>/home/ubuntu/application.env
           echo "#############################Installing node application############################"
           cd /home/ubuntu || exit
@@ -494,23 +749,21 @@ Resources:
 
 
           echo "#############################Installing node application############################"
-          
 
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Ec2Instance
-  
+
   # Creating Route 53 A record  aliasing to the Load Balancer
   myDNSRecordSet:
-     Type: AWS::Route53::RecordSet
-     Properties:
-       HostedZoneName: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
-       Name: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
-       Type: A
-       TTL: 60
-       ResourceRecords:
-        - !GetAtt Ec2AppInstance.PublicIp 
-
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
+      Name: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
+      Type: A
+      TTL: 60
+      ResourceRecords:
+        - !GetAtt Ec2AppInstance.PublicIp
 
 # To display the outputs of the resources created during the could formation after building the stack
 Outputs:
