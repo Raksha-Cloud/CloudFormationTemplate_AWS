@@ -110,3 +110,9 @@ You must be able to use the same CloudFormation template in the same AWS account
     ```
     $ `aws --profile=dev ec2 describe-vpcs` .
     ```
+    
+##### ACM CLI command to import SSL certificate
+    ```
+    $ aws acm import-certificate --certificate fileb://demo.rakshakagadaluraju.me/certificate.pem --certificate-chain fileb://demo.rakshakagadaluraju.me/ca_bundle.pem --private-key fileb://demo.rakshakagadaluraju.me/private.pem
+
+    ```
