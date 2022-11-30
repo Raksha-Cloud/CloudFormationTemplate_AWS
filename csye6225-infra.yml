@@ -91,7 +91,10 @@ Parameters:
     ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
     Default: "csye6225"
     Description: "parameter for DB Instance Identifier Name"
-
+  SSLCertId:
+     Type: String
+     Default: "95072eb3-1254-403b-9711-6d9b138facd6"
+     Description: "ACM SSL Certificate Id"
 #Specifies the stack resources and their properties, such as an Amazon Elastic Compute Cloud instance
 
 Resources:
@@ -341,7 +344,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     DependsOn: S3IamRole
     Properties:
-      InstanceProfileName: S3IamInstanceProfile
+      InstanceProfileName: !Sub '${AWS::StackName}-LaunchTemplateIAMInstanceProfile'
       Path: /
       Roles:
         - !Ref S3IamRole
@@ -364,6 +367,8 @@ Resources:
       Family: postgres13
       Parameters:
         shared_preload_libraries: "pg_stat_statements"
+        log_statement: "all"
+        rds.force_ssl: 1
 
   # Create RDS Instance with MySQL 8.0 and RDS Subnet Group and Parameter Group
   RDSInstance:
@@ -372,6 +377,7 @@ Resources:
       - RDSSecurityGroup
       - RDSSubnetGroup
       - RDSParameterGroup
+      - RdsKmsKey
     Properties:
       Engine: postgres
       EngineVersion: 13
@@ -389,6 +395,8 @@ Resources:
       DeleteAutomatedBackups: true
       AllocatedStorage: 5
       BackupRetentionPeriod: !Ref DBBackupDays
+      StorageEncrypted: true
+      KmsKeyId: !Ref RdsKmsKey
 
   # Security Group for RDS with inbound rules from EC2 Instance Security Group
   RDSSecurityGroup:
@@ -616,8 +624,8 @@ Resources:
                               Charset: "UTF-8",
                               Data: `<h3> Hello ${first_name} ${last_name},</h3>
                                     <h4>  Welcome to ${domainEnv}.rakshakagadaluraju.me </h4><br>
-                                    <p>Please click the following link: <a href="http://${domainEnv}.rakshakagadaluraju.me/v1/verifyUser?email=${username}&token=${userToken}">Email verification link</a> or <br>
-                                    paste the following link in the browser: http://${domainEnv}.rakshakagadaluraju.me/v1/verifyUser?email=${username}&token=${userToken} to verify your account with us.<br><br><br><br>
+                                    <p>Please click the following link: <a href="https://${domainEnv}.rakshakagadaluraju.me/v1/verifyUser?email=${username}&token=${userToken}">Email verification link</a> or <br>
+                                    paste the following link in the browser: https://${domainEnv}.rakshakagadaluraju.me/v1/verifyUser?email=${username}&token=${userToken} to verify your account with us.<br><br><br><br>
                                     Regards,<br>
                                     Team rakshakagadaluraju.me<br></p><br>`,
                             },
@@ -685,85 +693,409 @@ Resources:
               }
             };
 
-  #EC2 instance
-  Ec2AppInstance:
-    Type: "AWS::EC2::Instance"
+  # Create EC2 Launch Template
+  ELBLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     DependsOn:
       - RDSInstance
       - S3Bucket
       - S3IamInstanceProfile
     Properties:
-      InstanceType: !Ref EC2InstanceType
-      SecurityGroupIds:
-        - !Ref Ec2SecurityGroup
-      KeyName: aws
-      ImageId: !Ref AmiID
-      SubnetId: !Ref PublicSubnetOne
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeType: gp2
+      LaunchTemplateName: !Sub 'asg_launch_config'
+      LaunchTemplateData:
+        ImageId: !Ref AmiID
+        InstanceType: !Ref EC2InstanceType
+        KeyName: aws
+        IamInstanceProfile:
+          Arn: !Sub 'arn:aws:iam::${AWS::AccountId}:instance-profile/${AWS::StackName}-LaunchTemplateIAMInstanceProfile'
+        NetworkInterfaces: 
+          - AssociatePublicIpAddress: true
+            DeviceIndex: 0
+            Groups:
+              - !Ref Ec2SecurityGroup
             DeleteOnTermination: true
-            VolumeSize: 50
-      IamInstanceProfile: !Ref S3IamInstanceProfile
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          DB_HOST=${RDSInstance.Endpoint.Address}
-          DYNAMO_DB_TABLE_NAME=${myDynamoDB}
-          AWS_REGION=${AWS::Region}
-          SNS_TOPIC_ARN=${mySNSTopic}
-          AWS_BUCKET_NAME=${S3Bucket}
-          DB_USERNAME=${DBUserName}
-          DB_PASSWORD=${DBPassword}
-          DB_NAME=${DBName}
-          sudo apt-get update
-          sudo apt-get upgrade -y
-          {
-            echo "DB_HOST=$DB_HOST"
-            echo "DB_PORT=5432"
-            echo "AWS_BUCKET_NAME=$AWS_BUCKET_NAME"
-            echo "DYNAMO_DB_TABLE_NAME=$DYNAMO_DB_TABLE_NAME"
-            echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
-            echo "AWS_REGION=$AWS_REGION"
-            echo "DB_USERNAME=$DB_USERNAME"
-            echo "DB_PASSWORD=$DB_PASSWORD"
-            echo "DB_NAME=$DB_NAME"
-            echo "PORT=3300"
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeType: gp2
+              DeleteOnTermination: true
+              VolumeSize: 20
+              Encrypted: true
+              # KmsKeyId: !Ref EBSKmsKey
 
-            
-          } >>/home/ubuntu/application.env
-          echo "#############################Installing node application############################"
-          cd /home/ubuntu || exit
-          sudo chown ubuntu ./Routes/uploads
-          sudo chmod -R 777 ./Routes/uploads
-          sudo npm install
-          pwd
-          echo "Copying the service file to /etc/systemd/system/ to run the webapp automatically"
-          sudo mv /home/ubuntu/webapp.service /etc/systemd/system/webapp.service
-          echo "Enabling and Starting the node server service"
-          sudo systemctl enable webapp.service
-          sudo systemctl start webapp.service
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            DB_HOST=${RDSInstance.Endpoint.Address}
+            DYNAMO_DB_TABLE_NAME=${myDynamoDB}
+            AWS_REGION=${AWS::Region}
+            SNS_TOPIC_ARN=${mySNSTopic}
+            AWS_BUCKET_NAME=${S3Bucket}
+            DB_USERNAME=${DBUserName}
+            DB_PASSWORD=${DBPassword}
+            DB_NAME=${DBName}
+            sudo apt-get update
+            sudo apt-get upgrade -y
+            {
+              echo "DB_HOST=$DB_HOST"
+              echo "DB_PORT=5432"
+              echo "AWS_BUCKET_NAME=$AWS_BUCKET_NAME"
+              echo "DYNAMO_DB_TABLE_NAME=$DYNAMO_DB_TABLE_NAME"
+              echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
+              echo "AWS_REGION=$AWS_REGION"
+              echo "DB_USERNAME=$DB_USERNAME"
+              echo "DB_PASSWORD=$DB_PASSWORD"
+              echo "DB_NAME=$DB_NAME"
+              echo "PORT=3300"
 
-          sudo systemctl restart amazon-cloudwatch-agent
+              
+            } >>/home/ubuntu/application.env
+            echo "#############################Installing node application############################"
+            cd /home/ubuntu || exit
+            sudo chown ubuntu ./Routes/uploads
+            sudo chmod -R 777 ./Routes/uploads
+            sudo npm install
+            pwd
+            echo "Copying the service file to /etc/systemd/system/ to run the webapp automatically"
+            sudo mv /home/ubuntu/webapp.service /etc/systemd/system/webapp.service
+            echo "Enabling and Starting the node server service"
+            sudo systemctl enable webapp.service
+            sudo systemctl start webapp.service
+
+            sudo systemctl restart amazon-cloudwatch-agent
 
 
-          echo "#############################Installing node application############################"
+            echo "#############################Installing node application############################"
 
+  # Create Auto Scaling Group with Launch Template
+  InstanceAutoScalingGroup:
+     Type: AWS::AutoScaling::AutoScalingGroup
+     DependsOn:
+       - ELBLaunchTemplate
+       - ELBTargetGroup
+     Properties:
+       AutoScalingGroupName: !Sub '${AWS::StackName}-auto-scaling-group'
+       VPCZoneIdentifier:
+         - !Ref PublicSubnetOne
+         - !Ref PublicSubnetTwo
+         - !Ref PublicSubnetThree
+       AvailabilityZones:
+         - us-east-1a
+         - us-east-1b
+         - us-east-1c
+       LaunchTemplate:
+         LaunchTemplateId: !Ref ELBLaunchTemplate
+         Version: !GetAtt ELBLaunchTemplate.LatestVersionNumber
+       MinSize: 1
+       MaxSize: 3
+       DesiredCapacity: 1
+       Cooldown: '90'
+       HealthCheckGracePeriod: 90
+       HealthCheckType: EC2
+       TargetGroupARNs:
+         - !Ref ELBTargetGroup
+       Tags:
+         - Key: Application
+           Value: WebApp
+           PropagateAtLaunch: true
+         - Key: Name
+           Value: !Sub '${AWS::StackName}-auto-scaling-group'
+           PropagateAtLaunch: true
+
+  #Creating scaling up policy for Auto Scaling 
+  AutoScalingUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      Cooldown: '60'
+      ScalingAdjustment: '1'
+      AutoScalingGroupName: !Ref InstanceAutoScalingGroup
+
+  # Checking the condition to increase the number of instance
+  ELBAvgCPUUp:
+    Type: AWS::CloudWatch::Alarm
+    Properties: 
+      AlarmDescription: !Sub '${AWS::StackName}-Scale-up'
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 2
+      Period: 60
+      Threshold: 50.0
+      Statistic: Average
+      AlarmActions:
+        - !Ref AutoScalingUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref InstanceAutoScalingGroup
+          
+  # Creating scaling down policy for Auto Scaling 
+  AutoScalingDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      Cooldown: '60'
+      AutoScalingGroupName: !Ref InstanceAutoScalingGroup
+      ScalingAdjustment: '-1'
+
+  # Checking the condition to decrease the number of instance
+  ELBAvgCPUDown:
+    Type: AWS::CloudWatch::Alarm
+    Properties: 
+      AlarmDescription: !Sub '${AWS::StackName}-AVGCPUDOWN'
+      ComparisonOperator: LessThanThreshold
+      EvaluationPeriods: 2
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 60
+      Statistic: Average
+      Threshold: 30.0
+      AlarmActions:
+        - !Ref AutoScalingDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref InstanceAutoScalingGroup
+
+  # Create Load Balancer
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${AWS::StackName}-LoadBalancer'
+      Type: application
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnetOne
+        - !Ref PublicSubnetTwo
+        - !Ref PublicSubnetThree
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Tags:
+        - Key: Application
+          Value: WebApp
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Load_Balancer'
+
+  # Creating a Target Group for the Load Balancer
+  ELBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${AWS::StackName}-ELB-TargetGroup'
+      Port: 3300
+      TargetType: instance
+      IpAddressType: ipv4
+      Protocol: HTTP
+      VpcId: !Ref myVPC
+      HealthCheckIntervalSeconds: 90
+      HealthCheckPort: '3300'
+      HealthCheckPath: '/healthz'
+      HealthCheckProtocol: 'HTTP'
+      HealthCheckTimeoutSeconds: 60
+      UnhealthyThresholdCount: 2
+      HealthyThresholdCount: 2
       Tags:
         - Key: Name
-          Value: !Sub ${AWS::StackName}-Ec2Instance
+          Value: !Sub '${AWS::StackName}-ELB-TargetGroup'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+
+  # Creating a security group for load balancer
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for Load Balancer
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp 
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # Create Listener for Load Balancer
+  ELBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Join [ "", [ "arn:aws:acm:", !Ref AWS::Region, ":", !Ref AWS::AccountId, ":certificate/", !Ref SSLCertId ] ]
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ELBTargetGroup
 
   # Creating Route 53 A record  aliasing to the Load Balancer
   myDNSRecordSet:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneName: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
-      Name: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
+      Name: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
       Type: A
-      TTL: 60
-      ResourceRecords:
-        - !GetAtt Ec2AppInstance.PublicIp
+      HostedZoneName: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
+      AliasTarget:
+        DNSName: !GetAtt 
+          - LoadBalancer
+          - DNSName
+        EvaluateTargetHealth: false
+        HostedZoneId: !GetAtt 
+          - LoadBalancer
+          - CanonicalHostedZoneID
+
+
+
+      # HostedZoneName: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
+      # RecordSets:
+      #    - Name: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
+      #      Type: A
+      #      AliasTarget:
+      #        DNSName: !GetAtt LoadBalancer.DNSName
+      #        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+  
+  # Creating a KMS Key
+  RdsKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub KMS Key for RDS
+      PendingWindowInDays: 10
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: "kms-key-for-rds"      
+        Statement:
+          - Sid: "Allow IAM User permission for RDS Instance"
+            Effect: Allow
+            Principal:
+              AWS: !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':root'
+            Action:
+              - "kms:*"
+            Resource: "*"
+          - Sid: "Add service role"
+            Effect: Allow
+            Principal:
+              AWS: !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS'
+            Action:
+              - "kms:*"
+            Resource: "*"
+  # Creating a EBS KMS Key
+  EBSKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub KMS Key for EBS
+      MultiRegion: true
+      EnableKeyRotation: true
+      PendingWindowInDays: 10
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: key-default-1      
+        Statement:
+          - Sid: "Allow IAM User permission for EBS"
+            Effect: Allow
+            Principal:
+              AWS: !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':root'
+            Action:
+              - "kms:*"
+            Resource: "*"
+          - Sid: "Add service role"
+            Effect: Allow
+            Principal:
+              AWS: !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
+            Action:
+              - "kms:*"
+            Resource: "*"  
+            Condition:
+              Bool: 
+                kms:GrantIsForAWSResource: true
+
+   #EC2 instance
+  # Ec2AppInstance:
+  #   Type: "AWS::EC2::Instance"
+  #   DependsOn:
+  #     - RDSInstance
+  #     - S3Bucket
+  #     - S3IamInstanceProfile
+  #   Properties:
+  #     InstanceType: !Ref EC2InstanceType
+  #     SecurityGroupIds:
+  #       - !Ref Ec2SecurityGroup
+  #     KeyName: aws
+  #     ImageId: !Ref AmiID
+  #     SubnetId: !Ref PublicSubnetOne
+  #     BlockDeviceMappings:
+  #       - DeviceName: /dev/sda1
+  #         Ebs:
+  #           VolumeType: gp2
+  #           DeleteOnTermination: true
+  #           VolumeSize: 50
+  #     IamInstanceProfile: !Ref S3IamInstanceProfile
+  #     UserData:
+  #       Fn::Base64: !Sub |
+  #         #!/bin/bash
+  #         DB_HOST=${RDSInstance.Endpoint.Address}
+  #         DYNAMO_DB_TABLE_NAME=${myDynamoDB}
+  #         AWS_REGION=${AWS::Region}
+  #         SNS_TOPIC_ARN=${mySNSTopic}
+  #         AWS_BUCKET_NAME=${S3Bucket}
+  #         DB_USERNAME=${DBUserName}
+  #         DB_PASSWORD=${DBPassword}
+  #         DB_NAME=${DBName}
+  #         sudo apt-get update
+  #         sudo apt-get upgrade -y
+  #         {
+  #           echo "DB_HOST=$DB_HOST"
+  #           echo "DB_PORT=5432"
+  #           echo "AWS_BUCKET_NAME=$AWS_BUCKET_NAME"
+  #           echo "DYNAMO_DB_TABLE_NAME=$DYNAMO_DB_TABLE_NAME"
+  #           echo "SNS_TOPIC_ARN=$SNS_TOPIC_ARN"
+  #           echo "AWS_REGION=$AWS_REGION"
+  #           echo "DB_USERNAME=$DB_USERNAME"
+  #           echo "DB_PASSWORD=$DB_PASSWORD"
+  #           echo "DB_NAME=$DB_NAME"
+  #           echo "PORT=3300"
+
+            
+  #         } >>/home/ubuntu/application.env
+  #         echo "#############################Installing node application############################"
+  #         cd /home/ubuntu || exit
+  #         sudo chown ubuntu ./Routes/uploads
+  #         sudo chmod -R 777 ./Routes/uploads
+  #         sudo npm install
+  #         pwd
+  #         echo "Copying the service file to /etc/systemd/system/ to run the webapp automatically"
+  #         sudo mv /home/ubuntu/webapp.service /etc/systemd/system/webapp.service
+  #         echo "Enabling and Starting the node server service"
+  #         sudo systemctl enable webapp.service
+  #         sudo systemctl start webapp.service
+
+  #         sudo systemctl restart amazon-cloudwatch-agent
+
+
+  #         echo "#############################Installing node application############################"
+
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub ${AWS::StackName}-Ec2Instance
 
 # To display the outputs of the resources created during the could formation after building the stack
 Outputs:
