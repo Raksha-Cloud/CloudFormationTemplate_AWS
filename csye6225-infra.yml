@@ -425,20 +425,10 @@ Resources:
           IpProtocol: tcp
           ToPort: 22
 
-        - CidrIp: 0.0.0.0/0
-          FromPort: 80
-          IpProtocol: tcp
-          ToPort: 80
-
-        - CidrIp: 0.0.0.0/0
-          FromPort: 443
-          IpProtocol: tcp
-          ToPort: 443
-
-        - CidrIp: 0.0.0.0/0
-          FromPort: 3300
+        - FromPort: 3300
           IpProtocol: tcp
           ToPort: 3300
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
 
       Tags:
         - Key: Name
@@ -721,7 +711,7 @@ Resources:
               DeleteOnTermination: true
               VolumeSize: 20
               Encrypted: true
-              # KmsKeyId: !Ref EBSKmsKey
+              KmsKeyId: !Ref EBSKmsKey
 
         UserData:
           Fn::Base64: !Sub |
