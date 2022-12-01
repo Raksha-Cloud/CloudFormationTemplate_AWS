@@ -383,16 +383,16 @@ Resources:
       EngineVersion: 13
       DBInstanceClass: !Ref DBInstanceType
       MultiAZ: false
-      DBInstanceIdentifier: !Ref DBInstanceIdentifierName
-      MasterUsername: !Ref DBUserName
-      MasterUserPassword: !Ref DBPassword
-      DBSubnetGroupName: !Ref RDSSubnetGroup
-      PubliclyAccessible: false
       DBName: !Ref DBName
       VPCSecurityGroups:
         - !Ref RDSSecurityGroup
       DBParameterGroupName: !Ref RDSParameterGroup
       DeleteAutomatedBackups: true
+      DBInstanceIdentifier: !Ref DBInstanceIdentifierName
+      MasterUsername: !Ref DBUserName
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      PubliclyAccessible: false
       AllocatedStorage: 5
       BackupRetentionPeriod: !Ref DBBackupDays
       StorageEncrypted: true
@@ -491,12 +491,7 @@ Resources:
             Action:
               - SNS:Publish
               - SNS:Subscribe
-              - SNS:ListSubscriptionsByTopic
-              - SNS:GetTopicAttributes
-              - SNS:SetTopicAttributes
-              - SNS:AddPermission
-              - SNS:RemovePermission
-              - SNS:DeleteTopic
+
             Resource: !Ref mySNSTopic
             Condition:
               StringEquals:
@@ -777,7 +772,7 @@ Resources:
          LaunchTemplateId: !Ref ELBLaunchTemplate
          Version: !GetAtt ELBLaunchTemplate.LatestVersionNumber
        MinSize: 1
-       MaxSize: 3
+       MaxSize: 2
        DesiredCapacity: 1
        Cooldown: '90'
        HealthCheckGracePeriod: 90
@@ -811,7 +806,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       EvaluationPeriods: 2
       Period: 60
-      Threshold: 50.0
+      Threshold: 5.0
       Statistic: Average
       AlarmActions:
         - !Ref AutoScalingUpPolicy
@@ -839,7 +834,7 @@ Resources:
       Namespace: AWS/EC2
       Period: 60
       Statistic: Average
-      Threshold: 30.0
+      Threshold: 3.0
       AlarmActions:
         - !Ref AutoScalingDownPolicy
       Dimensions:
@@ -953,7 +948,6 @@ Resources:
     Type: AWS::KMS::Key
     Properties:
       Description: !Sub KMS Key for RDS
-      PendingWindowInDays: 10
       KeyPolicy:
         Version: "2012-10-17"
         Id: "kms-key-for-rds"      
@@ -982,41 +976,22 @@ Resources:
             Resource: "*"
   # Creating a EBS KMS Key
   EBSKmsKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: !Sub KMS Key for EBS
-      MultiRegion: true
-      EnableKeyRotation: true
-      PendingWindowInDays: 10
-      KeyPolicy:
-        Version: "2012-10-17"
-        Id: key-default-1      
-        Statement:
-          - Sid: "Allow IAM User permission for EBS"
-            Effect: Allow
-            Principal:
-              AWS: !Join 
-                - ''
-                - - 'arn:aws:iam::'
-                  - !Ref 'AWS::AccountId'
-                  - ':root'
-            Action:
-              - "kms:*"
-            Resource: "*"
-          - Sid: "Add service role"
-            Effect: Allow
-            Principal:
-              AWS: !Join 
-                - ''
-                - - 'arn:aws:iam::'
-                  - !Ref 'AWS::AccountId'
-                  - ':role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
-            Action:
-              - "kms:*"
-            Resource: "*"  
-            Condition:
-              Bool: 
-                kms:GrantIsForAWSResource: true
+      Type: AWS::KMS::Key
+      Properties:
+        Description: !Sub KMS Key for EBS
+        KeyPolicy:
+          Version: "2012-10-17"
+          Id: "kms-key-for-ebs"      
+          Statement:
+            - Sid: "Allow IAM User permission for EBS"
+              Effect: Allow
+              Principal:
+                AWS: 
+                  - arn:aws:iam::326684742220:root
+                  - arn:aws:iam::326684742220:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+              Action:
+                - "kms:*"
+              Resource: "*"
 
    #EC2 instance
   # Ec2AppInstance:
