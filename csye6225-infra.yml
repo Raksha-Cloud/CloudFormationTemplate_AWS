@@ -287,10 +287,10 @@ Resources:
           ],
         ]
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        IgnorePublicAcls: true
         BlockPublicPolicy: true
         RestrictPublicBuckets: true
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
       LifecycleConfiguration:
         Rules:
           - Id: MoveToStorageClassStandardToStandardIA
@@ -367,17 +367,17 @@ Resources:
       Family: postgres13
       Parameters:
         shared_preload_libraries: "pg_stat_statements"
-        log_statement: "all"
         rds.force_ssl: 1
+        log_statement: "all"
 
   # Create RDS Instance with MySQL 8.0 and RDS Subnet Group and Parameter Group
   RDSInstance:
     Type: AWS::RDS::DBInstance
     DependsOn:
       - RDSSecurityGroup
+      - RDSEncryptedKey
       - RDSSubnetGroup
       - RDSParameterGroup
-      - RdsKmsKey
     Properties:
       Engine: postgres
       EngineVersion: 13
@@ -386,17 +386,17 @@ Resources:
       DBName: !Ref DBName
       VPCSecurityGroups:
         - !Ref RDSSecurityGroup
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      PubliclyAccessible: false
       DBParameterGroupName: !Ref RDSParameterGroup
       DeleteAutomatedBackups: true
       DBInstanceIdentifier: !Ref DBInstanceIdentifierName
       MasterUsername: !Ref DBUserName
-      MasterUserPassword: !Ref DBPassword
-      DBSubnetGroupName: !Ref RDSSubnetGroup
-      PubliclyAccessible: false
       AllocatedStorage: 5
       BackupRetentionPeriod: !Ref DBBackupDays
       StorageEncrypted: true
-      KmsKeyId: !Ref RdsKmsKey
+      KmsKeyId: !Ref RDSEncryptedKey
 
   # Security Group for RDS with inbound rules from EC2 Instance Security Group
   RDSSecurityGroup:
@@ -450,8 +450,9 @@ Resources:
         - AttributeName: username
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: 1
         WriteCapacityUnits: 1
+        ReadCapacityUnits: 1
+
   #Creating DynamoDB Table to store username and email verified status
   userDynamoDB:
     Type: AWS::DynamoDB::Table
@@ -465,19 +466,21 @@ Resources:
         - AttributeName: email
           KeyType: HASH
       ProvisionedThroughput:
-        ReadCapacityUnits: 20
         WriteCapacityUnits: 20
+        ReadCapacityUnits: 20
+
 
     # Create SNS Topic
   #creating a SNS topic for lambda function
   mySNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: !Sub "${AWS::StackName}-mySNSTopic"
       DisplayName: !Sub "${AWS::StackName}-mySNSTopic"
+      TopicName: !Sub "${AWS::StackName}-mySNSTopic"
       Subscription:
         - Endpoint: !GetAtt LambdaFunction.Arn
           Protocol: "lambda"
+
   # Creating SNS Topic Policy
   mySNSTopicPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -706,7 +709,7 @@ Resources:
               DeleteOnTermination: true
               VolumeSize: 20
               Encrypted: true
-              KmsKeyId: !Ref EBSKmsKey
+              KmsKeyId: !Ref Ec2EncryptedKey
 
         UserData:
           Fn::Base64: !Sub |
@@ -933,18 +936,8 @@ Resources:
           - LoadBalancer
           - CanonicalHostedZoneID
 
-
-
-      # HostedZoneName: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
-      # RecordSets:
-      #    - Name: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
-      #      Type: A
-      #      AliasTarget:
-      #        DNSName: !GetAtt LoadBalancer.DNSName
-      #        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
-  
   # Creating a KMS Key
-  RdsKmsKey:
+  RDSEncryptedKey:
     Type: AWS::KMS::Key
     Properties:
       Description: !Sub KMS Key for RDS
@@ -974,8 +967,18 @@ Resources:
             Action:
               - "kms:*"
             Resource: "*"
+
+      # HostedZoneName: !Join ["", [!Ref EnvName, ".rakshakagadaluraju.me."]]
+      # RecordSets:
+      #    - Name: !Join ['', [!Ref EnvName,'.rakshakagadaluraju.me.' ]]
+      #      Type: A
+      #      AliasTarget:
+      #        DNSName: !GetAtt LoadBalancer.DNSName
+      #        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+  
+
   # Creating a EBS KMS Key
-  EBSKmsKey:
+  Ec2EncryptedKey:
       Type: AWS::KMS::Key
       Properties:
         Description: !Sub KMS Key for EBS
@@ -992,6 +995,8 @@ Resources:
               Action:
                 - "kms:*"
               Resource: "*"
+
+
 
    #EC2 instance
   # Ec2AppInstance:
